@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111318">
+<link rel="manifest" href="manifest.json">
+<title>Level Up IRL</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0d0f14;color:#f4f5f7;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:520px;margin:auto;padding:18px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+h1{font-size:25px;margin:0}.muted{color:#9da3af;font-size:13px}.card{background:#151820;border:1px solid #242936;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 8px 30px #0002}
+.level{display:flex;align-items:center;gap:14px}.badge{width:64px;height:64px;border-radius:18px;background:#242936;display:grid;place-items:center;font-size:24px;font-weight:800}
+.big{font-size:30px;font-weight:800}.xpbar{height:10px;background:#282d38;border-radius:99px;overflow:hidden;margin-top:10px}.xpfill{height:100%;background:#8b7cff;border-radius:99px;width:0%;transition:.3s}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.stat{background:#1b1f29;border-radius:15px;padding:13px;text-align:center}.stat b{display:block;font-size:20px}.quest{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #252a35}.quest:last-child{border-bottom:0}.qtext{flex:1}.qname{font-weight:650}.reward{font-size:12px;color:#aeb4c0;margin-top:3px}button{border:0;border-radius:12px;padding:10px 13px;background:#8173ff;color:white;font-weight:700;cursor:pointer}button:disabled{background:#303540;color:#7f8591}.coin{color:#ffd76a}.streak{color:#ff9d61}.sectiontitle{font-size:17px;font-weight:750;margin-bottom:8px}.footer{text-align:center;color:#727986;font-size:11px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div><h1>Level Up IRL 🎮</h1><div class="muted">Turn real life into a game.</div></div><div class="coin">🪙 <span id="coins">0</span></div></div>
+
+  <div class="card">
+    <div class="level"><div class="badge" id="level">1</div><div style="flex:1"><div class="muted">CURRENT LEVEL</div><div class="big"><span id="xp">0</span> XP</div><div class="xpbar"><div class="xpfill" id="xpfill"></div></div><div class="muted" id="next">100 XP to Level 2</div></div></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="done">0</b><span class="muted">Quests</span></div>
+    <div class="stat"><b class="streak">🔥 <span id="streak">0</span></b><span class="muted">Day streak</span></div>
+    <div class="stat"><b class="coin">🪙 <span id="coins2">0</span></b><span class="muted">Coins</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sectiontitle">Today's Quests</div>
+    <div id="quests"></div>
+  </div>
+
+  <div class="card">
+    <div class="sectiontitle">How it works</div>
+    <div class="muted">Complete a quest → gain XP + coins. Every 100 XP = one level. Keep completing at least one quest each day to build your streak.</div>
+  </div>
+  <div class="footer">Level Up IRL v1 • Progress is saved on this device</div>
+</div>
+<script>
+const KEY="levelUpIRLv1";
+const defaultData={xp:0,coins:0,done:0,streak:0,lastDay:"",quests:{}};
+let data=JSON.parse(localStorage.getItem(KEY)||JSON.stringify(defaultData));
+const quests=[
+ {id:"study",name:"Study for 30 minutes",xp:30,coins:10},
+ {id:"exercise",name:"Exercise / walk",xp:20,coins:8},
+ {id:"reading",name:"Read 10 pages",xp:15,coins:5},
+ {id:"clean",name:"Clean your room / desk",xp:10,coins:4},
+ {id:"skill",name:"Practice a skill",xp:25,coins:9}
+];
+function day(){return new Date().toISOString().slice(0,10)}
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function level(){return Math.floor(data.xp/100)+1}
+function ensureStreak(){
+ const today=day();
+ if(data.lastDay===today)return;
+ if(data.lastDay){
+  const a=new Date(data.lastDay),b=new Date(today);
+  const diff=Math.round((b-a)/86400000);
+  if(diff>1)data.streak=0;
+ }
+}
+function render(){
+ ensureStreak(); const lv=level(), within=data.xp%100;
+ document.getElementById("level").textContent=lv;
+ document.getElementById("xp").textContent=data.xp;
+ document.getElementById("coins").textContent=data.coins;
+ document.getElementById("coins2").textContent=data.coins;
+ document.getElementById("done").textContent=data.done;
+ document.getElementById("streak").textContent=data.streak;
+ document.getElementById("xpfill").style.width=within+"%";
+ document.getElementById("next").textContent=(100-within)+" XP to Level "+(lv+1);
+ const el=document.getElementById("quests"); el.innerHTML="";
+ quests.forEach(q=>{
+  const complete=data.quests[day()]?.includes(q.id);
+  const d=document.createElement("div");d.className="quest";
+  d.innerHTML=`<div style="font-size:22px">${complete?"✅":"🎯"}</div><div class="qtext"><div class="qname">${q.name}</div><div class="reward">+${q.xp} XP • +${q.coins} 🪙</div></div><button ${complete?"disabled":""}>${complete?"Done":"Complete"}</button>`;
+  d.querySelector("button").onclick=()=>completeQuest(q.id);el.appendChild(d);
+ });
+ save();
+}
+function completeQuest(id){
+ const today=day(); if(!data.quests[today])data.quests[today]=[];
+ if(data.quests[today].includes(id))return;
+ data.quests[today].push(id);
+ const q=quests.find(x=>x.id===id);data.xp+=q.xp;data.coins+=q.coins;data.done++;
+ if(data.lastDay!==today){
+  const old=data.lastDay?new Date(data.lastDay):null,newD=new Date(today);
+  data.streak=(old&&Math.round((newD-old)/86400000)===1)?data.streak+1:1;
+  data.lastDay=today;
+ }
+ render();
+}
+render();
+</script>
+</body>
+</html>
